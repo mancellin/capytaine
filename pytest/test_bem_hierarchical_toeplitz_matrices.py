@@ -123,14 +123,14 @@ def test_odd_axial_symmetry():
 
 @pytest.mark.parametrize("depth", [10.0, np.infty])
 def test_horizontal_cylinder(depth):
-    cylinder = HorizontalCylinder(length=10.0, radius=1.0, clever=False, nr=2, ntheta=10, nx=10)
+    cylinder = HorizontalCylinder(length=10.0, radius=1.0, reflection_symmetry=False, translation_symmetry=False, nr=2, ntheta=10, nx=10)
     assert isinstance(cylinder.mesh, Mesh)
     cylinder.translate_z(-3.0)
     cylinder.add_translation_dof(direction=(0, 0, 1), name="Heave")
     problem = RadiationProblem(body=cylinder, omega=1.0, sea_bottom=-depth)
     result1 = solver_with_sym.solve(problem)
 
-    trans_cylinder = HorizontalCylinder(length=10.0, radius=1.0, clever=True, nr=2, ntheta=10, nx=10)
+    trans_cylinder = HorizontalCylinder(length=10.0, radius=1.0, reflection_symmetry=False, translation_symmetry=True, nr=2, ntheta=10, nx=10)
     assert isinstance(trans_cylinder.mesh, CollectionOfMeshes)
     assert isinstance(trans_cylinder.mesh[0], TranslationalSymmetricMesh)
     trans_cylinder.translate_z(-3.0)

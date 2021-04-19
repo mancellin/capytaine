@@ -102,8 +102,9 @@ def test_join_axisymmetric_disks():
 
 def test_join_translational_cylinders():
     """Given two meshes with the same translation symmetry, join them into a single mesh with the same symmetry."""
-    mesh1 = HorizontalCylinder(length=10.0, radius=1.0, center=(0, 5, -5), clever=True, nr=0, ntheta=10, nx=10).mesh
-    mesh2 = HorizontalCylinder(length=10.0, radius=2.0, center=(0, -5, -5), clever=True, nr=0, ntheta=10, nx=10).mesh
+    params = dict(length=10.0, reflection_symmetry=False, translation_symmetry=True, nr=0, ntheta=10, nx=10)
+    mesh1 = HorizontalCylinder(radius=1.0, center=(0, 5, -5), **params).mesh
+    mesh2 = HorizontalCylinder(radius=2.0, center=(0, -5, -5), **params).mesh
     joined = mesh1.join_meshes(mesh2)
     assert isinstance(joined, TranslationalSymmetricMesh)
 

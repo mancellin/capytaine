@@ -79,8 +79,8 @@ class Disk(FloatingBody):
 
         elif axial_symmetry:
             mesh_slice = Disk.generate_disk_mesh(radius=self.radius, theta_max=np.pi/ntheta,
-                                                nr=nr, ntheta=1,
-                                                name=f"slice_of_{name}_mesh")
+                                                 nr=nr, ntheta=1,
+                                                 name=f"slice_of_{name}_mesh")
             mesh_slice.rotate_around_center_to_align_vectors((0, 0, 0), e_x, e_z)  # Convoluted way to avoid a warning message in AxialSymmetry...
             mesh = AxialSymmetricMesh(mesh_slice, axis=Oz_axis, nb_repetitions=ntheta - 1, name=f"{name}_mesh")
             mesh.rotate_around_center_to_align_vectors((0, 0, 0), e_z, e_x)
@@ -145,15 +145,19 @@ class HorizontalCylinder(FloatingBody):
         number of panels along a circular slice of the cylinder
     nr : int, optional
         number of panels along a radius on the extremities of the cylinder
-    clever : bool, optional
-        if True, uses the mesh symmetries
+    reflection_symmetry : bool, optional
+        if True, returns a ReflectionSymmetricMesh
+    translation_symmetry : bool, optional
+        if True, uses a TranslationalSymmetricMesh internally for the main part of the cylinder
     name : str, optional
         a string naming the floating body
     """
 
     def __init__(self, length=10.0, radius=1.0, center=(0, 0, 0),
                  nx=10, ntheta=10, nr=2,
-                 clever=True, name=None):
+                 reflection_symmetry=True, translation_symmetry=False,
+                 clever=None,
+                 name=None):
         self.length = length
         self.radius = radius
         self.geometric_center = np.asarray(center, dtype=float)
@@ -165,32 +169,46 @@ class HorizontalCylinder(FloatingBody):
         # When symmetries are used, one needs an even number of panels.
         # TODO: When symmetries are not used, implement the odd case.
 
-        open_cylinder = self._generate_open_cylinder_mesh(nx, ntheta, f"body_of_{name}")
+        if clever is not None:
+            LOG.warning("Deprecation warning: `clever` argument for VerticalCylinder is deprecated."
+                        "Use `reflection_symmetry` and/or `translation_symmetry` instead.")
 
-        if nr > 0:
+        open_cylinder = self._generate_open_cylinder_mesh(nx, ntheta,
+                                                          reflection_symmetry=reflection_symmetry,
+                                                          translation_symmetry=translation_symmetry,
+                                                          name=f"body_of_{name}")
+
+        if nr == 0:  # No sides
+            mesh = open_cylinder
+
+        else:  # Sides
             side = Disk(radius=radius, center=(-np.array([length/2, 0, 0])), normal=(-1, 0, 0),
+                        reflection_symmetry=reflection_symmetry,
                         resolution=(nr, ntheta), name=f"side_of_{name}").mesh
 
             other_side = side.copy(name=f"other_side_of_{name}_mesh")
             other_side.mirror(yOz_Plane)
 
-            mesh = CollectionOfMeshes((open_cylinder, side, other_side))
+            if reflection_symmetry:  # Knit the sides into the symmetric representation of the open cylinder
+                half_sides = CollectionOfMeshes((side.half, other_side.half), name="half_sides_of_{name}_mesh")
+                half_mesh = CollectionOfMeshes((open_cylinder.half, half_sides), name="half_{name}_mesh")
+                mesh = ReflectionSymmetricMesh(half_mesh, plane=xOz_Plane, name=f"{name}_mesh")
+            else:
+                sides = CollectionOfMeshes((side, other_side), name="sides_of_cylinder_{name}_mesh")
+                mesh = CollectionOfMeshes((open_cylinder, sides), name=f"{name}_mesh")
 
-        else:
-            mesh = open_cylinder
-
-        if not clever:
+        if not reflection_symmetry and not translation_symmetry:
             mesh = mesh.merged()
-            mesh.merge_duplicates()
-            mesh.heal_triangles()
+
+        mesh.heal_mesh()
 
         mesh.translate(self.geometric_center)
         mesh.name = f"{name}_mesh"
 
         FloatingBody.__init__(self, mesh=mesh, name=name)
 
-    def _generate_open_cylinder_mesh(self, nx, ntheta, name=None):
-        """Open horizontal cylinder using the symmetry to speed up the computations"""
+    def _generate_open_cylinder_mesh(self, nx, ntheta, reflection_symmetry, translation_symmetry, name=None):
+        """Open horizontal cylinder using the symmetries (translation and reflection) to speed up the computations"""
         theta_max = np.pi
         theta = np.linspace(0, theta_max, ntheta//2+1)
         X = np.array([0, self.length/nx])
@@ -211,13 +229,29 @@ class HorizontalCylinder(FloatingBody):
             panels[k, :] = (2*i, 2*i+2, 2*i+3, 2*i+1)
         half_ring = Mesh(nodes, panels, name=f"half_ring_of_{name}_mesh")
 
-        ring = ReflectionSymmetricMesh(half_ring, plane=xOz_Plane, name=f"ring_of_{name}_mesh")
+        if reflection_symmetry:
+            if nx == 1:
+                half_cylinder = half_ring
+            else:
+                half_cylinder = TranslationalSymmetricMesh(half_ring, translation=np.asarray([self.length / nx, 0.0, 0.0]),
+                                                           nb_repetitions=nx-1, name=f"half_{name}_mesh")
+                if not translation_symmetry:
+                    half_cylinder = half_cylinder.merged()
 
-        if nx == 1:
-            return ring
+            return ReflectionSymmetricMesh(half_cylinder, plane=xOz_Plane, name=f"{name}_mesh")
+
         else:
-            return TranslationalSymmetricMesh(ring, translation=np.asarray([self.length / nx, 0.0, 0.0]),
-                                              nb_repetitions=nx-1, name=f"{name}_mesh")
+            strip = half_ring + half_ring.mirrored(plane=xOz_Plane)
+            if nx == 1:
+                return strip
+
+            else:
+                cylinder = TranslationalSymmetricMesh(strip, translation=np.asarray([self.length / nx, 0.0, 0.0]),
+                                                      nb_repetitions=nx-1, name=f"half_{name}_mesh")
+                if not translation_symmetry:
+                    cylinder = cylinder.merged()
+
+            return cylinder
 
     @property
     def volume(self):
