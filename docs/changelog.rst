@@ -2,8 +2,23 @@
 Changelog
 =========
 
+------------------
+New in version ???
+------------------
+
+* The mesh are always "healed" when a new :code:`FloatingBody` is initialised
+  (i.e. unused vertices are removed, degenerate triangles are removed, etc.).
+  See for instance `issue #46 <https://github.com/mancellin/capytaine/issues/46>`_.
+
+* Implementation of symmetries for :code:`HorizontalCylinder` has changed.
+  The cylinder is now a reflection of two halves containing translational
+  repetition of half rings, instead of a translational repetition of symmetric
+  ring. By default, only reflection symmetry is used. The use of symmetries can
+  be controlled with :code:`translation_symmetry` and
+  :code:`reflection_symmetry` optional keyword arguments.
+
 ---------------------------------
-New in version 1.2.1 (2021-04-??)
+New in version 1.2.1 (2021-04-14)
 ---------------------------------
 
 * Minor bug fixes,
