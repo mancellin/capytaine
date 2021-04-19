@@ -157,7 +157,7 @@ def test_import_cal_file():
         assert problem.depth == np.infty
         assert isinstance(problem.body, FloatingBody)
         assert problem.body.nb_dofs == 6
-        assert problem.body.mesh.nb_vertices == 351
+        assert problem.body.mesh.nb_vertices == 299  # Duplicate vertices are removed during import.
         assert problem.body.mesh.nb_faces == 280
         assert problem.omega in np.linspace(0.1, 2.0, 41)
         if isinstance(problem, DiffractionProblem):

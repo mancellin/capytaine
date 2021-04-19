@@ -62,7 +62,11 @@ class FloatingBody(Abstract3DObject):
         self.dofs = dofs
         self.name = name
 
-        LOG.info(f"New floating body: {self.name}.")
+        if self.mesh.nb_vertices == 0 or self.mesh.nb_faces == 0:
+            LOG.warning(f"New floating body (with empty mesh!): {self.name}.")
+        else:
+            self.mesh.heal_mesh()
+            LOG.info(f"New floating body: {self.name}.")
 
     @staticmethod
     def from_file(filename: str, file_format=None, name=None) -> 'FloatingBody':
