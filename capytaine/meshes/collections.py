@@ -97,6 +97,11 @@ class CollectionOfMeshes(Abstract3DObject):
             new_mesh.name = name
         return new_mesh
 
+    @inplace_transformation
+    def heal_mesh(self):
+        for mesh in self:
+            mesh.heal_mesh()
+
     ##############
     # Properties #
     ##############
